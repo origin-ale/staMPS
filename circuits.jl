@@ -41,9 +41,9 @@ function randomlayerspecs(N::Integer, nlayers::Integer; seed::Union{Nothing,Inte
                 end
           end
       end
-  end
+    end
 
-  return specs
+    return specs
 end
 
 function stabilizerrandomlayers(N::Integer, nlayers::Integer; seed::Union{Nothing,Integer}=nothing, psingle::Float64=0.6, pcnot::Float64=0.5)

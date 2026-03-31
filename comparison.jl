@@ -4,7 +4,7 @@ using ITensors, ITensorMPS
 using QuantumClifford, Quantikz
 using Printf
 
-function stabevolve(circuitspecs)
+function stabevolve(N, circuitspecs)
     println("""Running stabilizer simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
         """)
 
@@ -17,7 +17,7 @@ function stabevolve(circuitspecs)
     return state
 end
 
-function mpsevolve(circuitspecs)
+function mpsevolve(N, circuitspecs)
     println("""Running MPS simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
         """)
 
@@ -101,14 +101,14 @@ end
 
 
 N = 16
-layers = 3*N
+layers = 50
 seed = 42
 circuitspecs = randomlayerspecs(N, layers; seed=seed)
 
-stabψ = stabevolve(circuitspecs)
+stabψ = stabevolve(N, circuitspecs)
 println("\n")
 
-mpsψ = mpsevolve(circuitspecs)
+mpsψ = mpsevolve(N, circuitspecs)
 println("\n")
 
 checkstamps(stabψ, mpsψ)
