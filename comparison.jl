@@ -1,35 +1,15 @@
+include("circuits.jl")
+
 using ITensors, ITensorMPS
 using QuantumClifford, Quantikz
 using Printf
 
-function stabilizerbell(N::Integer)
-    N % 2 == 0 || error("cannot make Bell pairs out of an odd number of sites.")
-    circuit = AbstractSymbolicOperator[]
-    for i in 1:(N÷2)
-        push!(circuit, sHadamard(2i-1))
-        push!(circuit, sCNOT(2i-1, 2i))
-    end
-    return circuit
-end
-
-function mpsbell(N::Integer, sites)
-    N % 2 == 0 || error("cannot make Bell pairs out of an odd number of sites.")
-    circuit = ITensor[]
-    for i in 1:(N÷2)
-        # Each push! adds an operator at the end of the circuit
-        push!(circuit, op("H", sites[2i-1]))
-        push!(circuit, op("CNOT", sites[2i-1], sites[2i]))
-    end
-    return circuit
-end
-
-function stabevolve(N::Integer)
+function stabevolve(circuitspecs)
     println("""Running stabilizer simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
-        Creating $(N÷2) Bell pairs.
         """)
 
     state = one(Destabilizer, N) # Diagonal Z stabilizer tableau, i.e. start from |0⟩|0⟩…|0⟩
-    circuit = stabilizerbell(N)
+    circuit = stabilizerrandomlayers(circuitspecs)
 
     stats = @timed mctrajectory!(state, circuit) # Apply the circuit to the state in-place (one MC iter, but this is deterministic)
 
@@ -37,16 +17,15 @@ function stabevolve(N::Integer)
     return state
 end
 
-function mpsevolve(N::Integer)
+function mpsevolve(circuitspecs)
     println("""Running MPS simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
-        Creating $(N÷2) Bell pairs.
         """)
 
     sites = siteinds("Qubit", N) # Array of one physical index per site
     states = ["↑" for n in 1:N] # Array of single-qubit states
 
     ψ = MPS(sites, states) # MPS with site indices, in product state |0⟩|0⟩…|0⟩
-    circuit = mpsbell(N, sites)
+    circuit = mpsrandomlayers(circuitspecs, sites)
 
     ψ, stats... = @timed apply(circuit, ψ)
 
@@ -101,12 +80,14 @@ function checkstamps(stabψ::Destabilizer, mpsψ::MPS; atol::Float64=1e-10)
         ψapplied = apply(mpo, ψref)
         normalize!(ψapplied)
 
-        ov = inner(ψref, ψapplied)
-        ok = abs2(ov - 1) ≤ atol
+        ov = abs2(inner(ψref, ψapplied))
+        ok = abs2(ov - 1) ≤ atol^2
         all_ok &= ok
 
-        status = ok ? "PASS" : "FAIL"
-        @printf "Stabilizer %d (%s): |⟨ψ|Sψ⟩|² = %.12f [%s]\n" k sstr ov status
+        if length(stabilizerstrings) ≤ 16 # Avoid flooding terminal for many-body systems
+          status = ok ? "PASS" : "FAIL"
+          @printf "Stabilizer %d (%s): |⟨ψ|Sψ⟩|² = %.12f [%s]\n" k sstr ov status
+        end
     end
 
     if all_ok
@@ -119,12 +100,15 @@ function checkstamps(stabψ::Destabilizer, mpsψ::MPS; atol::Float64=1e-10)
 end
 
 
-N = 6
+N = 16
+layers = 3*N
+seed = 42
+circuitspecs = randomlayerspecs(N, layers; seed=seed)
 
-stabψ = stabevolve(N)
+stabψ = stabevolve(circuitspecs)
 println("\n")
 
-mpsψ = mpsevolve(N)
+mpsψ = mpsevolve(circuitspecs)
 println("\n")
 
 checkstamps(stabψ, mpsψ)
