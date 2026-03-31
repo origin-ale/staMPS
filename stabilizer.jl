@@ -17,3 +17,5 @@ mctrajectory!(state, circuit) # Apply the circuit to the state in-place (one MC 
 
 printstyled("\n=== Final state ===\n"; color= :blue)
 println(state)
+
+println('\n')

@@ -3,8 +3,8 @@ using ITensors
 
 N = 8 # Number of qubits
 
-println("""Running stabilizer simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
-        Hadamard-CNOT circuit.
+println("""Running MPS simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
+        Creating 4 Bell pairs.
         """)
 
 sites = siteinds("Qubit", N) # Array of one physical index per site
