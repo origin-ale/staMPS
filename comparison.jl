@@ -3,23 +3,23 @@ include("circuits.jl")
 using ITensors, ITensorMPS
 using QuantumClifford, Quantikz
 using Printf
+using ProgressMeter
 
 function stabevolve(N, circuitspecs)
-    println("""Running stabilizer simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
-        """)
+    printstyled("--- Stabilizer simulation ---\n"; color = :cyan)
 
     state = one(Destabilizer, N) # Diagonal Z stabilizer tableau, i.e. start from |0⟩|0⟩…|0⟩
     circuit = stabilizerrandomlayers(circuitspecs)
 
+    print("Evolving… ")
     stats = @timed mctrajectory!(state, circuit) # Apply the circuit to the state in-place (one MC iter, but this is deterministic)
 
-    @printf "Evolution done in %.3f s.\n" stats.time
+    @printf "done in %.3f s.\n" stats.time
     return state
 end
 
 function mpsevolve(N, circuitspecs)
-    println("""Running MPS simulation on $N qubits starting at |0⟩|0⟩…|0⟩.
-        """)
+    printstyled("--- MPS simulation ---\n"; color = :cyan)
 
     sites = siteinds("Qubit", N) # Array of one physical index per site
     states = ["↑" for n in 1:N] # Array of single-qubit states
@@ -27,9 +27,10 @@ function mpsevolve(N, circuitspecs)
     ψ = MPS(sites, states) # MPS with site indices, in product state |0⟩|0⟩…|0⟩
     circuit = mpsrandomlayers(circuitspecs, sites)
 
-    ψ, stats... = @timed apply(circuit, ψ)
+    @showprogress desc = "Evolving…" color = :normal for gate in circuit
+        ψ = apply(gate, ψ)
+    end
 
-    @printf "Evolution done in %.3f s.\n" stats.time
     return ψ
 end
 
@@ -73,7 +74,8 @@ function checkstamps(stabψ::Destabilizer, mpsψ::MPS; atol::Float64=1e-10)
     ψref = deepcopy(mpsψ)
     normalize!(ψref)
 
-    println("Checking compatibility…")
+    printstyled("--- Compatibility check ---\n"; color = :cyan)
+    println("Computing action of stabilizers on final MPS…\n")
     all_ok = true
     for (k, sstr) in enumerate(stabilizerstrings)
         mpo = convertstabmpo(sstr, sites)
@@ -100,9 +102,11 @@ function checkstamps(stabψ::Destabilizer, mpsψ::MPS; atol::Float64=1e-10)
 end
 
 
-N = 16
+N = 14
 layers = 50
 seed = 42
+
+printstyled("===== COMPARING MPS AND STABILIZER FORMALISM =====\n\n", color = :cyan)
 circuitspecs = randomlayerspecs(N, layers; seed=seed)
 
 stabψ = stabevolve(N, circuitspecs)

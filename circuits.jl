@@ -1,15 +1,5 @@
 using Random
 
-function stabilizerbell(N::Integer)
-    N % 2 == 0 || error("cannot make Bell pairs out of an odd number of sites.")
-    circuit = AbstractSymbolicOperator[]
-    for i in 1:(N÷2)
-        push!(circuit, sHadamard(2i-1))
-        push!(circuit, sCNOT(2i-1, 2i))
-    end
-    return circuit
-end
-
 function randomlayerspecs(N::Integer, nlayers::Integer; seed::Union{Nothing,Integer}=nothing, psingle::Float64=0.6, pcnot::Float64=0.5)
     N ≥ 1 || error("the number of qubits must be at least 1.")
     nlayers ≥ 1 || error("the number of layers must be at least 1.")
@@ -42,13 +32,8 @@ function randomlayerspecs(N::Integer, nlayers::Integer; seed::Union{Nothing,Inte
           end
       end
     end
-
+    print("Circuit specifications built\n\n\n")
     return specs
-end
-
-function stabilizerrandomlayers(N::Integer, nlayers::Integer; seed::Union{Nothing,Integer}=nothing, psingle::Float64=0.6, pcnot::Float64=0.5)
-  specs = randomlayerspecs(N, nlayers; seed=seed, psingle=psingle, pcnot=pcnot)
-  return stabilizerrandomlayers(specs)
 end
 
 function stabilizerrandomlayers(specs)
@@ -66,12 +51,6 @@ function stabilizerrandomlayers(specs)
   return circuit
 end
 
-function mpsrandomlayers(N::Integer, nlayers::Integer, sites; seed::Union{Nothing,Integer}=nothing, psingle::Float64=0.6, pcnot::Float64=0.5)
-  N == length(sites) || error("N must match the number of provided sites.")
-  specs = randomlayerspecs(N, nlayers; seed=seed, psingle=psingle, pcnot=pcnot)
-  return mpsrandomlayers(specs, sites)
-end
-
 function mpsrandomlayers(specs, sites)
   circuit = ITensor[]
   for (gate, i, j) in specs
@@ -85,6 +64,16 @@ function mpsrandomlayers(specs, sites)
   end
 
   return circuit
+end
+
+function stabilizerbell(N::Integer)
+    N % 2 == 0 || error("cannot make Bell pairs out of an odd number of sites.")
+    circuit = AbstractSymbolicOperator[]
+    for i in 1:(N÷2)
+        push!(circuit, sHadamard(2i-1))
+        push!(circuit, sCNOT(2i-1, 2i))
+    end
+    return circuit
 end
 
 function mpsbell(N::Integer, sites)
