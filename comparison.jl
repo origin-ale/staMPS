@@ -12,7 +12,9 @@ function stabevolve(N, circuitspecs)
     circuit = stabilizerrandomlayers(circuitspecs)
 
     print("Evolving… ")
-    stats = @timed mctrajectory!(state, circuit) # Apply the circuit to the state in-place (one MC iter, but this is deterministic)
+    stats = @timed for gate in circuit # Apply the circuit to the state in-place (one MC iter, but this is deterministic)
+      apply!(state, gate)
+    end
 
     @printf "done in %.3f s.\n" stats.time
     return state
@@ -67,35 +69,37 @@ function convertstabmpo(stabstr::AbstractString, sites)
     return MPO(os, sites)
 end
 
+# checkstamps could use xbits and zbits
+
 function checkstamps(stabψ::Destabilizer, mpsψ::MPS; atol::Float64=1e-10)
     sites = siteinds(mpsψ)
     stabilizerstrings = [string(s) for s in stabilizerview(stabψ)]
 
     ψref = deepcopy(mpsψ)
-    normalize!(ψref)
+    # normalize!(ψref)
 
     printstyled("--- Compatibility check ---\n"; color = :cyan)
     println("Computing action of stabilizers on final MPS…\n")
     all_ok = true
     for (k, sstr) in enumerate(stabilizerstrings)
         mpo = convertstabmpo(sstr, sites)
-        ψapplied = apply(mpo, ψref)
-        normalize!(ψapplied)
+        # ψapplied = apply(mpo, ψref)
+        # normalize!(ψapplied)
 
-        ov = abs2(inner(ψref, ψapplied))
-        ok = abs2(ov - 1) ≤ atol^2
+        ov = inner(ψref', mpo, ψref)
+        ok = abs(ov - 1) ≤ atol
         all_ok &= ok
 
         if length(stabilizerstrings) ≤ 16 # Avoid flooding terminal for many-body systems
           status = ok ? "PASS" : "FAIL"
-          @printf "Stabilizer %d (%s): |⟨ψ|Sψ⟩|² = %.12f [%s]\n" k sstr ov status
+          @printf "Stabilizer %d (%s): ⟨ψ|S|ψ⟩ = %.12f + %.12f im [%s]\n" k sstr real(ov) imag(ov) status
         end
     end
 
     if all_ok
-        printstyled("\nFinal states are equal.", color= :green)
+        printstyled("Final states are equal (within tolerance).", color= :green)
       else
-        printstyled("\nWARNING: at least one stabilizer check failed. Final states are not equal, check code and rerun!", color= :red)
+        printstyled("WARNING: at least one stabilizer check failed. Final states are not equal, check code and rerun!", color= :red)
     end
 
     return all_ok
